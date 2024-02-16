@@ -68,10 +68,18 @@ static void GenerateMazeRecursive(int x, int y)
 		int dx = 0, dy = 0;
 		switch (dirs[i])
 		{
-		case 1: dy = -1; break; // Up
-		case 2: dx = 1; break;  // Right
-		case 3: dy = 1; break;  // Down
-		case 4: dx = -1; break; // Left
+		case 1:
+			dy = -1;
+			break; // Up
+		case 2:
+			dx = 1;
+			break; // Right
+		case 3:
+			dy = 1;
+			break; // Down
+		case 4:
+			dx = -1;
+			break; // Left
 		}
 
 		// Check if the next cell is within bounds and unvisited
