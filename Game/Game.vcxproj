@@ -133,6 +133,9 @@
   <ItemGroup>
     <Image Include="sprites\background\background_main.png" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Structs.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
