@@ -64,10 +64,49 @@ static void GenerateMaze() {
 	// Allocate memory for the maze
 	AllocateMazeMemory();
 
-	// Mark all cells as unvisited
+	// 0 = TILE_PATH,
+	// 1 = temporary placholder for another tile
+	// 2 = RIGHT_WALL,
+	// 3 = LEFT_WALL,
+	// 4 = UPPER_WALL,
+	// 5 = LOWER_WALL,
+	// 6 = UPPER_LEFT_WALL,
+	// 7 = UPPER_RIGHT_WALL,
+	// 8 = LOWER_LEFT_WALL,
+	// 9 = LOWER_RIGHT_WALL,
+
+	// Maze layout for generation
+	int maze1[MAZE_WIDTH][MAZE_HEIGHT] = {
+	{6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 7},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	{8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 9},
+	};
+
+	// Initialize the maze with the provided layout
 	for (int y = 0; y < MAZE_HEIGHT; y++) {
 		for (int x = 0; x < MAZE_WIDTH; x++) {
-			maze[y][x] = 1; // Initialize all cells as walls
+			maze[y][x] = maze1[y][x];
 		}
 	}
 
@@ -75,16 +114,23 @@ static void GenerateMaze() {
 	int stack[MAZE_WIDTH * MAZE_HEIGHT * 2];
 	int top = -1;
 
-	// Start from a random cell
-	int startX = 1 + (GetRandomValue(0, (MAZE_WIDTH - 1) / 2) * 2);
-	int startY = 1 + (GetRandomValue(0, (MAZE_HEIGHT - 1) / 2) * 2);
-	maze[startY][startX] = 0; // Mark the starting cell as visited
+	// Find the starting cell in the provided layout
+	int startX, startY;
+	for (int y = 0; y < MAZE_HEIGHT; y++) {
+		for (int x = 0; x < MAZE_WIDTH; x++) {
+			if (maze[y][x] == 0) {
+				startX = x;
+				startY = y;
+				break;
+			}
+		}
+	}
 
 	// Push the starting cell onto the stack
 	stack[++top] = startX;
 	stack[++top] = startY;
 
-	// Iterative depth-first search algorithm to generate the maze
+	// Iterative depth-first search algorithm to generate the rest of the maze
 	while (top >= 0) {
 		int y = stack[top--];
 		int x = stack[top--];
@@ -120,7 +166,7 @@ static void GenerateMaze() {
 			int nextY = y + dy;
 
 			// Check if the next cell is within bounds and unvisited
-			if (nextX > 0 && nextX < MAZE_WIDTH && nextY > 0 && nextY < MAZE_HEIGHT && maze[nextY][nextX] == 1) {
+			if (nextX > 0 && nextX < MAZE_WIDTH && nextY > 0 && nextY < MAZE_HEIGHT && maze[nextY][nextX] != 0) {
 				maze[y + dy / 2][x + dx / 2] = 0; // Mark the cell between as open
 				maze[nextY][nextX] = 0;           // Mark the next cell as visited
 
@@ -131,6 +177,8 @@ static void GenerateMaze() {
 		}
 	}
 }
+
+
 
 // Function to generate player movement
 static void MovePlayer(Direction direction) {
@@ -168,6 +216,7 @@ int main()
 	SetTargetFPS(60); // Sets the framerate to 60
 	LoadAllTextures(textures); // Call the LoadAllTextures function
 	GenerateMaze(); // Call the GenerateMaze function
+	// ToggleFullscreen();
 
 	// Objects
 	StaticObject tile_path = (StaticObject){ .texture_id = TEXTURE_TILE_PATH };
@@ -193,23 +242,23 @@ int main()
 	while (!WindowShouldClose()) {
 		// Update
 		if (!showMainScreen) {
-			if (IsKeyDown(KEY_UP)) {
+			if (IsKeyPressed(KEY_UP)) {
 				MovePlayer(DIR_UP);
 			}
-			else if (IsKeyDown(KEY_DOWN)) {
+			else if (IsKeyPressed(KEY_DOWN)) {
 				MovePlayer(DIR_DOWN);
 			}
-			else if (IsKeyDown(KEY_LEFT)) {
+			else if (IsKeyPressed(KEY_LEFT)) {
 				MovePlayer(DIR_LEFT);
 			}
-			else if (IsKeyDown(KEY_RIGHT)) {
+			else if (IsKeyPressed(KEY_RIGHT)) {
 				MovePlayer(DIR_RIGHT);
 			}
 		}
 
 		// Draw
 		BeginDrawing();
-		ClearBackground(RAYWHITE);
+		ClearBackground((Color) { 33, 34, 52, 255 });
 
 		if (showMainScreen) {
 			DrawTexture(textures[background_main.texture_id], background_main.rect.x, background_main.rect.y, WHITE);
@@ -220,11 +269,40 @@ int main()
 			for (int y = 0; y < MAZE_HEIGHT; y++) {
 				for (int x = 0; x < MAZE_WIDTH; x++) {
 					Rectangle cellRect = { x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-					if (maze[y][x] == 1) {
-						DrawRectangleRec(cellRect, BLACK);
-					}
-					else {
+					switch (maze[y][x]) {
+					case 0: // TILE_PATH
 						DrawTexture(textures[tile_path.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 1: // TILE_PATH
+						DrawRectangleRec(cellRect, BLACK);
+						break;
+					case 2: // RIGHT_WALL
+						DrawTexture(textures[tile_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 3: // LEFT_WALL
+						DrawTexture(textures[tile_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 4: // UPPER_WALL
+						DrawTexture(textures[tile_upper_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 5: // LOWER_WALL
+						DrawTexture(textures[tile_lower_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 6: // UPPER_LEFT_WALL
+						DrawTexture(textures[tile_upper_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 7: // UPPER_RIGHT_WALL
+						DrawTexture(textures[tile_upper_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 8: // LOWER_LEFT_WALL
+						DrawTexture(textures[tile_lower_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					case 9: // LOWER_RIGHT_WALL
+						DrawTexture(textures[tile_lower_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						break;
+					default: // Unknown tile type
+						DrawRectangleRec(cellRect, BLACK);
+						break;
 					}
 				}
 			}
