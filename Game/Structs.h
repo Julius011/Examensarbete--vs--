@@ -5,11 +5,16 @@
 #include "raymath.h"
 
 #define MAX_TEXTURES_IN_MEMORY 128
-#define MAX_ANIMATIONS_PER_ENTITY 6
+#define MAX_ANIMATIONS_PER_ENTITY 5
 #define MAX_ANIMATIONS_PER_OBJECT 1
 
 typedef enum
 {
+    TEXTURE_PLAYER,
+    TEXTURE_PLAYER_DOWN,
+    TEXTURE_PLAYER_UP,
+    TEXTURE_PLAYER_LEFT,
+    TEXTURE_PLAYER_RIGHT,
     TEXTURE_BACKGROUND_MAIN,
     TEXTURE_TILE_PATH,
     TEXTURE_TILE_RIGHT_WALL,
@@ -44,6 +49,15 @@ typedef struct
     Animation animations[MAX_ANIMATIONS_PER_OBJECT];
     int current_animation;
 } InteractableObject;
+
+typedef struct
+{
+    int entityHeight;
+    int entityWidth;
+    Rectangle rect;
+    Animation animations[MAX_ANIMATIONS_PER_ENTITY];
+    int current_animation;
+} Entity;
 
 void LoadAllTextures(Texture2D textures[]);
 

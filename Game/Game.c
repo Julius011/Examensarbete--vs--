@@ -22,9 +22,11 @@ typedef enum {
 
 // Global variables
 int** maze;
-Vector2 playerPosition;
 Texture2D textures[TEXTURE_NUM];
 bool showMainScreen = true;
+
+// Forward declaration of the function
+static bool CheckCollisionWithBorders(int x, int y);
 
 // Function to allocate memory for the maze
 static void AllocateMazeMemory() {
@@ -178,127 +180,213 @@ static void GenerateMaze() {
 	}
 }
 
-
-
-// Function to generate player movement
-static void MovePlayer(Direction direction) {
-	int dx = 0, dy = 0;
-	switch (direction) {
-	case DIR_UP:
-		dy = -1;
-		break;
-	case DIR_RIGHT:
-		dx = 1;
-		break;
-	case DIR_DOWN:
-		dy = 1;
-		break;
-	case DIR_LEFT:
-		dx = -1;
-		break;
-	}
-
-	int newX = (int)playerPosition.x + dx;
-	int newY = (int)playerPosition.y + dy;
-
-	// Check if the new position is within bounds and not a wall
-	if (newX >= 0 && newX < MAZE_WIDTH && newY >= 0 && newY < MAZE_HEIGHT && maze[newY][newX] == 0) {
-		playerPosition.x = newX;
-		playerPosition.y = newY;
-	}
+// Function to generate the player's initial position
+static void GeneratePlayerPosition(Rectangle* playerRect) {
+	do {
+		// Generate random coordinates for the player within the maze bounds
+		playerRect->x = (int)GetRandomValue(1, MAZE_WIDTH - 2) * (int)TILE_SIZE;
+		playerRect->y = (int)GetRandomValue(1, MAZE_HEIGHT - 2) * (int)TILE_SIZE;
+	} while (CheckCollisionWithBorders(playerRect->x / (int)TILE_SIZE, playerRect->y / (int)TILE_SIZE));
 }
 
+// Function to check collision with maze borders
+static bool CheckCollisionWithBorders(int x, int y) {
+	// Check if the player is at a border cell
+	if (x <= 0 || x >= MAZE_WIDTH - 1 || y <= 0 || y >= MAZE_HEIGHT - 2) {
+		return true; // Collision detected
+	}
+
+	// Check if the player is colliding with specific border objects
+	int tileType = maze[y][x];
+	if (tileType == 2 || tileType == 3 || tileType == 4 || tileType == 5 ||
+		tileType == 6 || tileType == 7 || tileType == 8 || tileType == 9) {
+		return true; // Collision detected
+	}
+
+	return false; // No collision
+}
 
 int main()
 {
-	// Initialization
+	//----------------------------------------------------
+	// Initilise
+	//----------------------------------------------------
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Main window");
 	SetTargetFPS(60); // Sets the framerate to 60
 	LoadAllTextures(textures); // Call the LoadAllTextures function
 	GenerateMaze(); // Call the GenerateMaze function
-	// ToggleFullscreen();
 
-	// Objects
+	// Background
+	StaticObject background_main = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_MAIN };
+
+	// Tiles
 	StaticObject tile_path = (StaticObject){ .texture_id = TEXTURE_TILE_PATH };
-	StaticObject tile_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_RIGHT_WALL};
-	StaticObject tile_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LEFT_WALL};
-	StaticObject tile_upper_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_WALL};
-	StaticObject tile_lower_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_WALL};
-	StaticObject tile_upper_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_LEFT_WALL};
-	StaticObject tile_upper_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_RIGHT_WALL};
-	StaticObject tile_lower_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_LEFT_WALL};
-	StaticObject tile_lower_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_RIGHT_WALL};
-	StaticObject background_main = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_MAIN};
+	StaticObject tile_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_RIGHT_WALL };
+	StaticObject tile_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LEFT_WALL };
+	StaticObject tile_upper_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_WALL };
+	StaticObject tile_lower_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_WALL };
+	StaticObject tile_upper_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_LEFT_WALL };
+	StaticObject tile_upper_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_RIGHT_WALL };
+	StaticObject tile_lower_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_LEFT_WALL };
+	StaticObject tile_lower_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_RIGHT_WALL };
 
-	// Initialize player position
-	playerPosition = (Vector2){ 1, 1 };
+	// Player
+	// StaticObject player = (StaticObject){ .texture_id = TEXTURE_PLAYER };
+	Entity player = (Entity){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_PLAYER,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_PLAYER_DOWN,
+				.current_frame = 0,
+				.max_frame = 8,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_PLAYER_UP,
+				.current_frame = 0,
+				.max_frame = 8,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_PLAYER_LEFT,
+				.current_frame = 0,
+				.max_frame = 8,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_PLAYER_RIGHT,
+				.current_frame = 0,
+				.max_frame = 8,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 12, 12, 16, 32 },
+		.current_animation = 0 };
 
+	// Sets the current frame time to 0
+	float currentFrameTime = 0.0f;
+
+
+	// Set camera settings
 	Camera2D camera = { 0 };
-	camera.target = (Vector2){ MAZE_WIDTH * TILE_SIZE / 2, MAZE_HEIGHT * TILE_SIZE / 2 };
+	camera.target = (Vector2){ MAZE_WIDTH * (int)TILE_SIZE / 2, MAZE_HEIGHT * (int)TILE_SIZE / 2 };
 	camera.offset = (Vector2){ SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
 	camera.rotation = 0.0f;
 	camera.zoom = 1.5f; // Adjust the zoom factor as needed
 
+
+	// Generate the player's initial position
+	GeneratePlayerPosition(&(player.rect));
+
+
 	while (!WindowShouldClose()) {
+		//----------------------------------------------------
 		// Update
-		if (!showMainScreen) {
-			if (IsKeyPressed(KEY_UP)) {
-				MovePlayer(DIR_UP);
-			}
-			else if (IsKeyPressed(KEY_DOWN)) {
-				MovePlayer(DIR_DOWN);
-			}
-			else if (IsKeyPressed(KEY_LEFT)) {
-				MovePlayer(DIR_LEFT);
-			}
-			else if (IsKeyPressed(KEY_RIGHT)) {
-				MovePlayer(DIR_RIGHT);
+		//----------------------------------------------------
+
+		// Update necessary animation (player, ...):
+		{
+			// Player
+			Animation* player_animation = &player.animations[player.current_animation];
+			player_animation->timer += GetFrameTime();
+			if (player_animation->timer >= player_animation->frame_duration)
+			{
+				player_animation->current_frame++;
+				if (player_animation->current_frame > player_animation->max_frame)
+				{
+					player_animation->current_frame = 0;
+				}
+				player_animation->timer = 0.0f;
 			}
 		}
 
+		// Update player movement logic
+		if (!showMainScreen) {
+			if (IsKeyDown(KEY_DOWN)) {
+				if (!CheckCollisionWithBorders(player.rect.x / (int)TILE_SIZE, (player.rect.y + (int)TILE_SIZE) / (int)TILE_SIZE)) {
+					player.rect.y += (int)TILE_SIZE;
+					player.current_animation = 1; // Set animation to walking down
+				}
+			}
+			else if (IsKeyDown(KEY_UP)) {
+				if (!CheckCollisionWithBorders(player.rect.x / (int)TILE_SIZE, (player.rect.y - (int)TILE_SIZE) / (int)TILE_SIZE)) {
+					player.rect.y -= (int)TILE_SIZE;
+					player.current_animation = 2; // Set animation to walking up
+				}
+			}
+			else if (IsKeyDown(KEY_LEFT)) {
+				if (!CheckCollisionWithBorders((player.rect.x - (int)TILE_SIZE) / (int)TILE_SIZE, player.rect.y / (int)TILE_SIZE)) {
+					player.rect.x -= (int)TILE_SIZE;
+					player.current_animation = 3; // Set animation to walking left
+				}
+			}
+			else if (IsKeyDown(KEY_RIGHT)) {
+				if (!CheckCollisionWithBorders((player.rect.x + (int)TILE_SIZE) / (int)TILE_SIZE, player.rect.y / (int)TILE_SIZE)) {
+					player.rect.x += (int)TILE_SIZE;
+					player.current_animation = 4; // Set animation to walking right
+				}
+			}
+			else {
+				player.current_animation = 0; // Set animation to idle
+			}
+		}
+
+		//----------------------------------------------------
 		// Draw
+		//----------------------------------------------------
 		BeginDrawing();
 		ClearBackground((Color) { 33, 34, 52, 255 });
 
 		if (showMainScreen) {
-			DrawTexture(textures[background_main.texture_id], background_main.rect.x, background_main.rect.y, WHITE);
+			DrawTexture(textures[background_main.texture_id], (int)background_main.rect.x, (int)background_main.rect.y, WHITE);
 		}
 		else {
 			BeginMode2D(camera);
+
 			// Draw maze
 			for (int y = 0; y < MAZE_HEIGHT; y++) {
 				for (int x = 0; x < MAZE_WIDTH; x++) {
-					Rectangle cellRect = { x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+					Rectangle cellRect = { x * (int)TILE_SIZE, y * (int)TILE_SIZE, (int)TILE_SIZE, (int)TILE_SIZE };
 					switch (maze[y][x]) {
 					case 0: // TILE_PATH
-						DrawTexture(textures[tile_path.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_path.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 1: // TILE_PATH
 						DrawRectangleRec(cellRect, BLACK);
 						break;
 					case 2: // RIGHT_WALL
-						DrawTexture(textures[tile_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 3: // LEFT_WALL
-						DrawTexture(textures[tile_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 4: // UPPER_WALL
-						DrawTexture(textures[tile_upper_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_upper_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 5: // LOWER_WALL
-						DrawTexture(textures[tile_lower_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_lower_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 6: // UPPER_LEFT_WALL
-						DrawTexture(textures[tile_upper_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_upper_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 7: // UPPER_RIGHT_WALL
-						DrawTexture(textures[tile_upper_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_upper_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 8: // LOWER_LEFT_WALL
-						DrawTexture(textures[tile_lower_left_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_lower_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					case 9: // LOWER_RIGHT_WALL
-						DrawTexture(textures[tile_lower_right_wall.texture_id], cellRect.x, cellRect.y, WHITE);
+						DrawTexture(textures[tile_lower_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
 						break;
 					default: // Unknown tile type
 						DrawRectangleRec(cellRect, BLACK);
@@ -308,8 +396,7 @@ int main()
 			}
 
 			// Draw player
-			Rectangle playerRect = { playerPosition.x * TILE_SIZE, playerPosition.y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-			DrawRectangleRec(playerRect, RED);
+			DrawTexturePro(textures[player.animations[player.current_animation].texture_id], (Rectangle) { 16 * player.animations[player.current_animation].current_frame, 0, 16, 32 }, player.rect, Vector2Zero(), 0, WHITE);
 		}
 
 		EndMode2D();
