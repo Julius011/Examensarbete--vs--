@@ -1,210 +1,106 @@
-#include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "raylib.h"
 #include "raymath.h"
 #include "Structs.h"
+#include <time.h>
 
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
-#define MAZE_WIDTH 24
-#define MAZE_HEIGHT 24
-#define TILE_SIZE 16
-
-// Enum for directions
-typedef enum {
-	DIR_UP,
-	DIR_RIGHT,
-	DIR_DOWN,
-	DIR_LEFT
-} Direction;
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define AREA_WIDTH 320
+#define AREA_HEIGHT 240
+#define MAZE_WIDTH 40
+#define MAZE_HEIGHT 30
+#define CELL_SIZE 16
 
 // Global variables
-int** maze;
-Texture2D textures[TEXTURE_NUM];
-bool showMainScreen = true;
+float scale = 1.0f; // Sets the current scale for objects
+float currentFrameTime = 0.0f; // Sets the current frame time to 0
+bool fullscreen_toggled = false; // Sets the fullscreen to false
+Texture2D textures[TEXTURE_NUM]; // Numbers of textures
+time_t lastMovementTime = 0; // Track last movement time
 
-// Forward declaration of the function
-static bool CheckCollisionWithBorders(int x, int y);
+// Boolean variables to represent different states
+bool in_main_menu = true;
+bool in_front_of_dm = false;
+bool in_maze = false;
+bool in_battle = false;
+bool in_player_menu = false;
 
-// Function to allocate memory for the maze
-static void AllocateMazeMemory() {
-	maze = (int**)malloc(MAZE_HEIGHT * sizeof(int*));
-	if (maze == NULL) {
-		// Handle allocation failure
-		fprintf(stderr, "Failed to allocate memory for maze rows\n");
-		exit(EXIT_FAILURE);
+bool playerTurn = true;
+bool dmTurn = false;
+bool enviormentTurn = false;
+
+// Number of squares an entity can move
+int squaresToMove = 3;	// Default value
+int playerToMove = 3;	// Player
+int skeletonToMove = 3; // Skeleton
+
+// Function to get the area index based on player position
+static int GetAreaIndex(float x, float y) {
+	int areaX = (int)(x / AREA_WIDTH);
+	int areaY = (int)(y / AREA_HEIGHT);
+
+	return areaX + areaY * 2;
+};
+
+int maze[MAZE_HEIGHT][MAZE_WIDTH] = {
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1},
+	{1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1},
+	{1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1},
+	{1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1},
+	{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
+
+static bool CheckCollisionWithWalls(float x, float y) {
+	// Convert player's position to maze coordinates
+	int mazeX = (int)(x / CELL_SIZE);
+	int mazeY = (int)(y / CELL_SIZE);
+
+	// Check if the player is within the bounds of the maze
+	if (mazeX < 0 || mazeX >= MAZE_WIDTH || mazeY < 0 || mazeY >= MAZE_HEIGHT) {
+		return true; // Collision with boundary
 	}
 
-	for (int i = 0; i < MAZE_HEIGHT; i++) {
-		maze[i] = (int*)malloc(MAZE_WIDTH * sizeof(int));
-		if (maze[i] == NULL) {
-			// Handle allocation failure
-			fprintf(stderr, "Failed to allocate memory for maze row %d\n", i);
-			// Free previously allocated memory
-			for (int j = 0; j < i; j++) {
-				free(maze[j]);
-			}
-			free(maze);
-			exit(EXIT_FAILURE);
-		}
-	}
+	// Check if the player is colliding with a wall
+	return maze[mazeY][mazeX] == 1;
 }
 
-// Function to free memory allocated for the maze
-static void FreeMazeMemory()
-{
-	for (int i = 0; i < MAZE_HEIGHT; i++) {
-		free(maze[i]);
+// Function to get the distance to the nearest wall in a specific direction
+static int GetDistanceToWall(float x, float y, int dx, int dy) {
+	int distance = 0;
+	while (!CheckCollisionWithWalls(x + (dx * (distance + 1) * CELL_SIZE), y + (dy * (distance + 1) * CELL_SIZE))) {
+		distance++;
 	}
-	free(maze);
+	return distance;
 }
 
-/// Function to generate the maze
-static void GenerateMaze() {
-	// Allocate memory for the maze
-	AllocateMazeMemory();
-
-	// 0 = TILE_PATH,
-	// 1 = temporary placholder for another tile
-	// 2 = RIGHT_WALL,
-	// 3 = LEFT_WALL,
-	// 4 = UPPER_WALL,
-	// 5 = LOWER_WALL,
-	// 6 = UPPER_LEFT_WALL,
-	// 7 = UPPER_RIGHT_WALL,
-	// 8 = LOWER_LEFT_WALL,
-	// 9 = LOWER_RIGHT_WALL,
-
-	// Maze layout for generation
-	int maze1[MAZE_WIDTH][MAZE_HEIGHT] = {
-	{6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 7},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-	{8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 9},
-	};
-
-	// Initialize the maze with the provided layout
-	for (int y = 0; y < MAZE_HEIGHT; y++) {
-		for (int x = 0; x < MAZE_WIDTH; x++) {
-			maze[y][x] = maze1[y][x];
-		}
-	}
-
-	// Stack for iterative depth-first search
-	int stack[MAZE_WIDTH * MAZE_HEIGHT * 2];
-	int top = -1;
-
-	// Find the starting cell in the provided layout
-	int startX, startY;
-	for (int y = 0; y < MAZE_HEIGHT; y++) {
-		for (int x = 0; x < MAZE_WIDTH; x++) {
-			if (maze[y][x] == 0) {
-				startX = x;
-				startY = y;
-				break;
-			}
-		}
-	}
-
-	// Push the starting cell onto the stack
-	stack[++top] = startX;
-	stack[++top] = startY;
-
-	// Iterative depth-first search algorithm to generate the rest of the maze
-	while (top >= 0) {
-		int y = stack[top--];
-		int x = stack[top--];
-
-		// Randomly shuffle the directions
-		Direction dirs[4] = { DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT };
-		for (int i = 0; i < 4; i++) {
-			int r = GetRandomValue(0, 3);
-			Direction temp = dirs[i];
-			dirs[i] = dirs[r];
-			dirs[r] = temp;
-		}
-
-		// Check each direction
-		for (int i = 0; i < 4; i++) {
-			int dx = 0, dy = 0;
-			switch (dirs[i]) {
-			case DIR_UP:
-				dy = -2;
-				break; // Up
-			case DIR_RIGHT:
-				dx = 2;
-				break; // Right
-			case DIR_DOWN:
-				dy = 2;
-				break; // Down
-			case DIR_LEFT:
-				dx = -2;
-				break; // Left
-			}
-
-			int nextX = x + dx;
-			int nextY = y + dy;
-
-			// Check if the next cell is within bounds and unvisited
-			if (nextX > 0 && nextX < MAZE_WIDTH && nextY > 0 && nextY < MAZE_HEIGHT && maze[nextY][nextX] != 0) {
-				maze[y + dy / 2][x + dx / 2] = 0; // Mark the cell between as open
-				maze[nextY][nextX] = 0;           // Mark the next cell as visited
-
-				// Push the next cell onto the stack
-				stack[++top] = nextX;
-				stack[++top] = nextY;
-			}
-		}
-	}
-}
-
-// Function to generate the player's initial position
-static void GeneratePlayerPosition(Rectangle* playerRect) {
-	do {
-		// Generate random coordinates for the player within the maze bounds
-		playerRect->x = (int)GetRandomValue(1, MAZE_WIDTH - 2) * (int)TILE_SIZE;
-		playerRect->y = (int)GetRandomValue(1, MAZE_HEIGHT - 2) * (int)TILE_SIZE;
-	} while (CheckCollisionWithBorders(playerRect->x / (int)TILE_SIZE, playerRect->y / (int)TILE_SIZE));
-}
-
-// Function to check collision with maze borders
-static bool CheckCollisionWithBorders(int x, int y) {
-	// Check if the player is at a border cell
-	if (x <= 0 || x >= MAZE_WIDTH - 1 || y <= 0 || y >= MAZE_HEIGHT - 2) {
-		return true; // Collision detected
-	}
-
-	// Check if the player is colliding with specific border objects
-	int tileType = maze[y][x];
-	if (tileType == 2 || tileType == 3 || tileType == 4 || tileType == 5 ||
-		tileType == 6 || tileType == 7 || tileType == 8 || tileType == 9) {
-		return true; // Collision detected
-	}
-
-	return false; // No collision
-}
 
 int main()
 {
@@ -214,24 +110,202 @@ int main()
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Main window");
 	SetTargetFPS(60); // Sets the framerate to 60
 	LoadAllTextures(textures); // Call the LoadAllTextures function
-	GenerateMaze(); // Call the GenerateMaze function
 
 	// Background
-	StaticObject background_main = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_MAIN };
+	StaticObject backgroundMain = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_MAIN };
+	StaticObject backgroundMaze = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_MAZE };
 
-	// Tiles
-	StaticObject tile_path = (StaticObject){ .texture_id = TEXTURE_TILE_PATH };
-	StaticObject tile_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_RIGHT_WALL };
-	StaticObject tile_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LEFT_WALL };
-	StaticObject tile_upper_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_WALL };
-	StaticObject tile_lower_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_WALL };
-	StaticObject tile_upper_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_LEFT_WALL };
-	StaticObject tile_upper_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_UPPER_RIGHT_WALL };
-	StaticObject tile_lower_left_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_LEFT_WALL };
-	StaticObject tile_lower_right_wall = (StaticObject){ .texture_id = TEXTURE_TILE_LOWER_RIGHT_WALL };
+	// Movment menu
+	PopupMenu menuMovementHigher = (PopupMenu){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPHIGHERBUTTON1,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPHIGHERBUTTON2,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPHIGHERBUTTON3,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPHIGHERBUTTON4,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 0, 0, 320, 240 },
+		.active = false,
+		.current_animation = 0,
+	};
+	PopupMenu menuMovementLower = (PopupMenu){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPLOWERBUTTON1,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPLOWERBUTTON2,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPLOWERBUTTON3,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_PUPUPLOWERBUTTON4,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 0, 0, 320, 240 },
+		.active = false,
+		.current_animation = 0,
+	};
+
+	// Equipment, Inventory and Settings menu
+	PopupMenu menuEqInvSet = (PopupMenu){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENT,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_INVENTORY,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 0, 0, 320, 240 },
+		.active = false,
+		.current_animation = 0,
+	};
+
+	// Equipment menu
+	PopupMenu menuEquipment = (PopupMenu){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTSWORD,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTSHIELD,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTITEM,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTHEAD,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTCHEST,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTLEGS,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_EQUIPMENTSLOTBOOTS,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 0, 0, 320, 240 },
+		.active = false,
+		.current_animation = 0,
+	};
+
+	// Equipment menu
+	PopupMenu menuInventory = (PopupMenu){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_MENU_INVENTORYITEMS,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_INVENTORYWEAPONS,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_INVENTORYARMOR,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+			(Animation) {
+				.texture_id = TEXTURE_MENU_INVENTORYNOTES,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			},
+		},
+		.rect = (Rectangle){ 0, 0, 320, 240 },
+		.active = false,
+		.current_animation = 0,
+	};
 
 	// Player
-	// StaticObject player = (StaticObject){ .texture_id = TEXTURE_PLAYER };
 	Entity player = (Entity){
 		.animations = {
 			(Animation) {
@@ -240,53 +314,37 @@ int main()
 				.max_frame = 0,
 				.frame_duration = 0.1f,
 				.timer = 0,
-			},
-			(Animation) {
-				.texture_id = TEXTURE_PLAYER_DOWN,
-				.current_frame = 0,
-				.max_frame = 8,
-				.frame_duration = 0.1f,
-				.timer = 0,
-			},
-			(Animation) {
-				.texture_id = TEXTURE_PLAYER_UP,
-				.current_frame = 0,
-				.max_frame = 8,
-				.frame_duration = 0.1f,
-				.timer = 0,
-			},
-			(Animation) {
-				.texture_id = TEXTURE_PLAYER_LEFT,
-				.current_frame = 0,
-				.max_frame = 8,
-				.frame_duration = 0.1f,
-				.timer = 0,
-			},
-			(Animation) {
-				.texture_id = TEXTURE_PLAYER_RIGHT,
-				.current_frame = 0,
-				.max_frame = 8,
-				.frame_duration = 0.1f,
-				.timer = 0,
-			},
+			}
 		},
-		.rect = (Rectangle){ 12, 12, 16, 32 },
-		.current_animation = 0 };
+		.rect = (Rectangle){ 1 * CELL_SIZE, 2 * CELL_SIZE, 16, 16 },
+		.current_animation = 0
+	};
 
-	// Sets the current frame time to 0
-	float currentFrameTime = 0.0f;
+	// Enemy - Skeleton
+	Entity skeleton = (Entity){
+		.animations = {
+			(Animation) {
+				.texture_id = TEXTURE_SKELETON,
+				.current_frame = 0,
+				.max_frame = 0,
+				.frame_duration = 0.1f,
+				.timer = 0,
+			}
+		},
+		.rect = (Rectangle){ 10 * CELL_SIZE, 9 * CELL_SIZE, 16, 16 },
+		.current_animation = 0
+	};
 
+	// Determine the initial area index based on player position
+	int initialAreaIndex = GetAreaIndex(player.rect.x, player.rect.y);
+	int currentAreaIndex = initialAreaIndex; // Tracking current area index
 
-	// Set camera settings
+	// Camera setup
 	Camera2D camera = { 0 };
-	camera.target = (Vector2){ MAZE_WIDTH * (int)TILE_SIZE / 2, MAZE_HEIGHT * (int)TILE_SIZE / 2 };
+	camera.target = (Vector2){ (initialAreaIndex % 2) * AREA_WIDTH + AREA_WIDTH / 2, (initialAreaIndex / 2) * AREA_HEIGHT + AREA_HEIGHT / 2 };
 	camera.offset = (Vector2){ SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
 	camera.rotation = 0.0f;
-	camera.zoom = 1.5f; // Adjust the zoom factor as needed
-
-
-	// Generate the player's initial position
-	GeneratePlayerPosition(&(player.rect));
+	camera.zoom = 2.0f;
 
 
 	while (!WindowShouldClose()) {
@@ -297,47 +355,276 @@ int main()
 		// Update necessary animation (player, ...):
 		{
 			// Player
-			Animation* player_animation = &player.animations[player.current_animation];
-			player_animation->timer += GetFrameTime();
-			if (player_animation->timer >= player_animation->frame_duration)
+			Animation* playerAnimation = &player.animations[player.current_animation];
+			playerAnimation->timer += GetFrameTime();
+			if (playerAnimation->timer >= playerAnimation->frame_duration)
 			{
-				player_animation->current_frame++;
-				if (player_animation->current_frame > player_animation->max_frame)
+				playerAnimation->current_frame++;
+				if (playerAnimation->current_frame > playerAnimation->max_frame)
 				{
-					player_animation->current_frame = 0;
+					playerAnimation->current_frame = 0;
 				}
-				player_animation->timer = 0.0f;
+				playerAnimation->timer = 0.0f;
+			}
+
+			// Movement menu (Lower)
+			Animation* menuMovementLowerAnimation = &menuMovementLower.animations[menuMovementLower.current_animation];
+			menuMovementLowerAnimation->timer += GetFrameTime();
+			if (menuMovementLowerAnimation->timer >= menuMovementLowerAnimation->frame_duration)
+			{
+				menuMovementLowerAnimation->current_frame++;
+				if (menuMovementLowerAnimation->current_frame > menuMovementLowerAnimation->max_frame)
+				{
+					menuMovementLowerAnimation->current_frame = 0;
+				}
+				menuMovementLowerAnimation->timer = 0.0f;
+			}
+
+			// Movment menu (Higher)
+			Animation* menuMovementHigherAnimation = &menuMovementHigher.animations[menuMovementHigher.current_animation];
+			menuMovementHigherAnimation->timer += GetFrameTime();
+			if (menuMovementHigherAnimation->timer >= menuMovementHigherAnimation->frame_duration)
+			{
+				menuMovementHigherAnimation->current_frame++;
+				if (menuMovementHigherAnimation->current_frame > menuMovementHigherAnimation->max_frame)
+				{
+					menuMovementHigherAnimation->current_frame = 0;
+				}
+				menuMovementHigherAnimation->timer = 0.0f;
+			}
+
+			// Equipment, Inventory and Settings menu
+			Animation* menuEqInvSetAnimation = &menuEqInvSet.animations[menuEqInvSet.current_animation];
+			menuEqInvSetAnimation->timer += GetFrameTime();
+			if (menuEqInvSetAnimation->timer >= menuEqInvSetAnimation->frame_duration)
+			{
+				menuEqInvSetAnimation->current_frame++;
+				if (menuEqInvSetAnimation->current_frame > menuEqInvSetAnimation->max_frame)
+				{
+					menuEqInvSetAnimation->current_frame = 0;
+				}
+				menuEqInvSetAnimation->timer = 0.0f;
+			}
+
+			// Equipment menu
+			Animation* menuEquipmentAnimation = &menuEquipment.animations[menuEquipment.current_animation];
+			menuEquipmentAnimation->timer += GetFrameTime();
+			if (menuEquipmentAnimation->timer >= menuEquipmentAnimation->frame_duration)
+			{
+				menuEquipmentAnimation->current_frame++;
+				if (menuEquipmentAnimation->current_frame > menuEquipmentAnimation->max_frame)
+				{
+					menuEquipmentAnimation->current_frame = 0;
+				}
+				menuEquipmentAnimation->timer = 0.0f;
+			}
+
+			// Inventory menu
+			Animation* menuInventoryAnimation = &menuInventory.animations[menuInventory.current_animation];
+			menuInventoryAnimation->timer += GetFrameTime();
+			if (menuInventoryAnimation->timer >= menuInventoryAnimation->frame_duration)
+			{
+				menuInventoryAnimation->current_frame++;
+				if (menuInventoryAnimation->current_frame > menuInventoryAnimation->max_frame)
+				{
+					menuInventoryAnimation->current_frame = 0;
+				}
+				menuInventoryAnimation->timer = 0.0f;
 			}
 		}
 
-		// Update player movement logic
-		if (!showMainScreen) {
-			if (IsKeyDown(KEY_DOWN)) {
-				if (!CheckCollisionWithBorders(player.rect.x / (int)TILE_SIZE, (player.rect.y + (int)TILE_SIZE) / (int)TILE_SIZE)) {
-					player.rect.y += (int)TILE_SIZE;
-					player.current_animation = 1; // Set animation to walking down
+		// Determine the current area index based on player position and
+		// If the player has moved to a new area, update the camera
+		int newAreaIndex = GetAreaIndex(player.rect.x, player.rect.y);
+		if (newAreaIndex != currentAreaIndex) {
+			currentAreaIndex = newAreaIndex;
+			int areaX = currentAreaIndex % 2;
+			int areaY = currentAreaIndex / 2;
+			camera.target = (Vector2){ areaX * AREA_WIDTH + AREA_WIDTH / 2, areaY * AREA_HEIGHT + AREA_HEIGHT / 2 };
+		}
+
+
+		// Temporary (state change)
+		if (IsKeyPressed(KEY_I))
+		{
+			in_main_menu = true;
+			in_front_of_dm = false;
+			in_maze = false;
+			in_battle = false;
+		}
+		if (IsKeyPressed(KEY_O))
+		{
+			in_main_menu = false;
+			in_front_of_dm = true;
+			in_maze = false;
+			in_battle = false;
+		}
+		if (IsKeyPressed(KEY_P))
+		{
+			in_main_menu = false;
+			in_front_of_dm = false;
+			in_maze = true;
+			in_battle = false;
+		}
+		if (IsKeyPressed(KEY_L))
+		{
+			in_main_menu = false;
+			in_front_of_dm = false;
+			in_maze = false;
+			in_battle = true;
+		}
+
+		if (in_maze) {
+			// Open up player movement menu
+			if (IsKeyPressed(KEY_Z)) {
+				if (player.rect.y < camera.target.y) {
+					menuMovementLower.active = true;
+					menuMovementHigher.active = false;
+					menuEqInvSet.active = false;
+					menuEquipment.active = false;
+					menuInventory.active = false;
+				}
+				else {
+					menuMovementLower.active = false;
+					menuMovementHigher.active = true;
+					menuEqInvSet.active = false;
+					menuEquipment.active = false;
+					menuInventory.active = false;
 				}
 			}
-			else if (IsKeyDown(KEY_UP)) {
-				if (!CheckCollisionWithBorders(player.rect.x / (int)TILE_SIZE, (player.rect.y - (int)TILE_SIZE) / (int)TILE_SIZE)) {
-					player.rect.y -= (int)TILE_SIZE;
-					player.current_animation = 2; // Set animation to walking up
+
+			// Movment and steps menu management
+			if (menuMovementLower.active || menuMovementHigher.active) {
+				// Shuffle between choises (aniamtions)
+				if (IsKeyPressed(KEY_RIGHT)) {
+					menuMovementLower.current_animation = (menuMovementLower.current_animation + 1) % 4;
+					menuMovementHigher.current_animation = (menuMovementHigher.current_animation + 1) % 4;
+				}
+				else if (IsKeyPressed(KEY_LEFT)) {
+					menuMovementLower.current_animation = (menuMovementLower.current_animation - 1 + 4) % 4;
+					menuMovementHigher.current_animation = (menuMovementHigher.current_animation - 1 + 4) % 4;
+				}
+				// Select the current choise
+				else if (IsKeyPressed(KEY_ENTER)) {
+					// Handle selection when enter key is pressed
+					int selectedDirection = menuMovementLower.active ? menuMovementLower.current_animation : menuMovementHigher.current_animation;
+					switch (selectedDirection) {
+					case 0: // Up
+						if (!CheckCollisionWithWalls(player.rect.x, player.rect.y - CELL_SIZE)) {
+							int distanceUp = GetDistanceToWall(player.rect.x, player.rect.y, 0, -1);
+							player.rect.y -= CELL_SIZE * fmin(playerToMove, distanceUp);
+						}
+						break;
+					case 1: // Down
+						if (!CheckCollisionWithWalls(player.rect.x, player.rect.y + CELL_SIZE)) {
+							int distanceDown = GetDistanceToWall(player.rect.x, player.rect.y, 0, 1);
+							player.rect.y += CELL_SIZE * fmin(playerToMove, distanceDown);
+						}
+						break;
+					case 2: // Left
+						if (!CheckCollisionWithWalls(player.rect.x - CELL_SIZE, player.rect.y)) {
+							int distanceLeft = GetDistanceToWall(player.rect.x, player.rect.y, -1, 0);
+							player.rect.x -= CELL_SIZE * fmin(playerToMove, distanceLeft);
+						}
+						break;
+					case 3: // Right
+						if (!CheckCollisionWithWalls(player.rect.x + CELL_SIZE, player.rect.y)) {
+							int distanceRight = GetDistanceToWall(player.rect.x, player.rect.y, 1, 0);
+							player.rect.x += CELL_SIZE * fmin(playerToMove, distanceRight);
+						}
+						break;
+					}
+					// Deactivate the popup menu
+					menuMovementLower.active = false;
+					menuMovementHigher.active = false;
 				}
 			}
-			else if (IsKeyDown(KEY_LEFT)) {
-				if (!CheckCollisionWithBorders((player.rect.x - (int)TILE_SIZE) / (int)TILE_SIZE, player.rect.y / (int)TILE_SIZE)) {
-					player.rect.x -= (int)TILE_SIZE;
-					player.current_animation = 3; // Set animation to walking left
+
+			// Open up player menu (Equipment, Inventory and Settings)
+			if (IsKeyPressed(KEY_X))
+			{
+				menuMovementLower.active = false;
+				menuMovementHigher.active = false;
+				menuEqInvSet.active = true;
+				menuEquipment.active = false;
+				menuInventory.active = false;
+			}
+
+			// Equipment, Inventory and Settings menu management
+			if (menuEqInvSet.active)
+			{
+				// Shuffle between choises (aniamtions)
+				if (IsKeyPressed(KEY_RIGHT)) {
+					menuEqInvSet.current_animation = (menuEqInvSet.current_animation + 1) % 2;
+				}
+				else if (IsKeyPressed(KEY_LEFT)) {
+					menuEqInvSet.current_animation = (menuEqInvSet.current_animation - 1 + 2) % 2;
+				}
+
+				// Select the current choise
+				if (IsKeyPressed(KEY_ENTER))
+				{
+					if (menuEqInvSet.current_animation == 0)
+					{
+						menuEquipment.active = true;
+						menuInventory.active = false;
+						menuEqInvSet.active = false;
+					}
+					if (menuEqInvSet.current_animation == 1)
+					{
+						menuEquipment.active = false;
+						menuInventory.active = true;
+						menuEqInvSet.active = false;
+					}
+				}
+
+				// Exit out of current menu
+				if (IsKeyPressed(KEY_M))
+				{
+					menuEquipment.active = false;
+					menuInventory.active = false;
+					menuEqInvSet.active = false;
 				}
 			}
-			else if (IsKeyDown(KEY_RIGHT)) {
-				if (!CheckCollisionWithBorders((player.rect.x + (int)TILE_SIZE) / (int)TILE_SIZE, player.rect.y / (int)TILE_SIZE)) {
-					player.rect.x += (int)TILE_SIZE;
-					player.current_animation = 4; // Set animation to walking right
+
+			// Equpment menu management
+			if (menuEquipment.active)
+			{
+				// Shuffle between choises (aniamtions)
+				if (IsKeyPressed(KEY_RIGHT)) {
+					menuEquipment.current_animation = (menuEquipment.current_animation + 1) % 7;
+				}
+				else if (IsKeyPressed(KEY_LEFT)) {
+					menuEquipment.current_animation = (menuEquipment.current_animation - 1 + 7) % 7;
+				}
+
+				// Exit out of current menu
+				if (IsKeyPressed(KEY_M))
+				{
+					menuEquipment.active = false;
+					menuInventory.active = false;
+					menuEqInvSet.active = true;
 				}
 			}
-			else {
-				player.current_animation = 0; // Set animation to idle
+
+			// Invetory menu management
+			if (menuInventory.active)
+			{
+				// Shuffle between choises (aniamtions)
+				if (IsKeyPressed(KEY_RIGHT)) {
+					menuInventory.current_animation = (menuInventory.current_animation + 1) % 4;
+				}
+				else if (IsKeyPressed(KEY_LEFT)) {
+					menuInventory.current_animation = (menuInventory.current_animation - 1 + 4) % 4;
+				}
+
+				// Exit out of current menu
+				if (IsKeyPressed(KEY_M))
+				{
+					menuEquipment.active = false;
+					menuInventory.active = false;
+					menuEqInvSet.active = true;
+				}
 			}
 		}
 
@@ -345,72 +632,99 @@ int main()
 		// Draw
 		//----------------------------------------------------
 		BeginDrawing();
-		ClearBackground((Color) { 33, 34, 52, 255 });
+		BeginMode2D(camera);
+		ClearBackground(WHITE);
+		// ClearBackground((Color) { 33, 34, 52, 255 });
 
-		if (showMainScreen) {
-			DrawTexture(textures[background_main.texture_id], (int)background_main.rect.x, (int)background_main.rect.y, WHITE);
+		// Draw based on player's current state
+		if (in_main_menu) {
+			// Draw main menu elements
+			// For example:
+			// DrawMainMenu();
 		}
-		else {
-			BeginMode2D(camera);
+		else if (in_front_of_dm) {
+			// DM Background
+			DrawTexturePro(textures[backgroundMain.texture_id], (Rectangle) { 0, 0, GetScreenWidth(), GetScreenHeight() }, (Rectangle) { 0, 0, GetScreenWidth(), GetScreenHeight() }, (Vector2) { 0, 0 }, 0, WHITE);
+		}
+		else if (in_maze) {
+			// Maze background
+			DrawTexturePro(textures[backgroundMaze.texture_id], (Rectangle) { 0, 0, GetScreenWidth(), GetScreenHeight() }, (Rectangle) { 0, 0, GetScreenWidth(), GetScreenHeight() }, (Vector2) { 0, 0 }, 0, WHITE);
 
-			// Draw maze
-			for (int y = 0; y < MAZE_HEIGHT; y++) {
-				for (int x = 0; x < MAZE_WIDTH; x++) {
-					Rectangle cellRect = { x * (int)TILE_SIZE, y * (int)TILE_SIZE, (int)TILE_SIZE, (int)TILE_SIZE };
-					switch (maze[y][x]) {
-					case 0: // TILE_PATH
-						DrawTexture(textures[tile_path.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 1: // TILE_PATH
-						DrawRectangleRec(cellRect, BLACK);
-						break;
-					case 2: // RIGHT_WALL
-						DrawTexture(textures[tile_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 3: // LEFT_WALL
-						DrawTexture(textures[tile_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 4: // UPPER_WALL
-						DrawTexture(textures[tile_upper_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 5: // LOWER_WALL
-						DrawTexture(textures[tile_lower_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 6: // UPPER_LEFT_WALL
-						DrawTexture(textures[tile_upper_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 7: // UPPER_RIGHT_WALL
-						DrawTexture(textures[tile_upper_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 8: // LOWER_LEFT_WALL
-						DrawTexture(textures[tile_lower_left_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					case 9: // LOWER_RIGHT_WALL
-						DrawTexture(textures[tile_lower_right_wall.texture_id], (int)cellRect.x, (int)cellRect.y, WHITE);
-						break;
-					default: // Unknown tile type
-						DrawRectangleRec(cellRect, BLACK);
-						break;
-					}
+			// Player
+			DrawTexturePro(textures[player.animations[player.current_animation].texture_id], (Rectangle) { 16 * player.animations[player.current_animation].current_frame, 0, 16, 32 }, (Rectangle) { player.rect.x, player.rect.y, player.rect.width* scale, player.rect.height* scale }, (Vector2) { 0, 0 }, 0, WHITE);
+
+			// Skeleton
+			DrawTexturePro(textures[skeleton.animations[skeleton.current_animation].texture_id], (Rectangle) { 16 * skeleton.animations[skeleton.current_animation].current_frame, 0, 16, 16 }, (Rectangle) { skeleton.rect.x, skeleton.rect.y, 16 * scale, 16 * scale }, (Vector2) { 0, 0 }, 0, WHITE);
+
+			// Drawing movement menu
+			if (menuMovementLower.active || menuMovementHigher.active) {
+				// Get the area coordinates based on the current area index
+				int areaX = currentAreaIndex % 2;
+				int areaY = currentAreaIndex / 2;
+
+				// Calculate the position of the popup menu based on the area coordinates
+				float popupX = areaX * AREA_WIDTH;
+				float popupY = areaY * AREA_HEIGHT;
+
+				// Draw the popup menu at the appropriate position
+				if (menuMovementLower.active) {
+					DrawTexturePro(textures[menuMovementLower.animations[menuMovementLower.current_animation].texture_id], (Rectangle) { 16 * menuMovementLower.animations[menuMovementLower.current_animation].current_frame, 0, 320, 240 }, (Rectangle) { popupX, popupY, 320, 240 }, (Vector2) { 0, 0 }, 0, WHITE);
+				}
+				else if (menuMovementHigher.active) {
+					DrawTexturePro(textures[menuMovementHigher.animations[menuMovementHigher.current_animation].texture_id], (Rectangle) { 16 * menuMovementHigher.animations[menuMovementHigher.current_animation].current_frame, 0, 320, 240 }, (Rectangle) { popupX, popupY, 320, 240 }, (Vector2) { 0, 0 }, 0, WHITE);
 				}
 			}
 
-			// Draw player
-			DrawTexturePro(textures[player.animations[player.current_animation].texture_id], (Rectangle) { 16 * player.animations[player.current_animation].current_frame, 0, 16, 32 }, player.rect, Vector2Zero(), 0, WHITE);
+			if (menuEqInvSet.active)
+			{
+				// Get the area coordinates based on the current area index
+				int areaX = currentAreaIndex % 2;
+				int areaY = currentAreaIndex / 2;
+
+				// Calculate the position of the popup menu based on the area coordinates
+				float popupX = areaX * AREA_WIDTH;
+				float popupY = areaY * AREA_HEIGHT;
+
+				DrawTexturePro(textures[menuEqInvSet.animations[menuEqInvSet.current_animation].texture_id], (Rectangle) { 16 * menuEqInvSet.animations[menuEqInvSet.current_animation].current_frame, 0, 320, 240 }, (Rectangle) { popupX, popupY, 320, 240 }, (Vector2) { 0, 0 }, 0, WHITE);
+			}
+
+			if (menuEquipment.active)
+			{
+				// Get the area coordinates based on the current area index
+				int areaX = currentAreaIndex % 2;
+				int areaY = currentAreaIndex / 2;
+
+				// Calculate the position of the popup menu based on the area coordinates
+				float popupX = areaX * AREA_WIDTH;
+				float popupY = areaY * AREA_HEIGHT;
+
+				DrawTexturePro(textures[menuEquipment.animations[menuEquipment.current_animation].texture_id], (Rectangle) { 16 * menuEquipment.animations[menuEquipment.current_animation].current_frame, 0, 320, 240 }, (Rectangle) { popupX, popupY, 320, 240 }, (Vector2) { 0, 0 }, 0, WHITE);
+			}
+
+			if (menuInventory.active)
+			{
+				// Get the area coordinates based on the current area index
+				int areaX = currentAreaIndex % 2;
+				int areaY = currentAreaIndex / 2;
+
+				// Calculate the position of the popup menu based on the area coordinates
+				float popupX = areaX * AREA_WIDTH;
+				float popupY = areaY * AREA_HEIGHT;
+
+				DrawTexturePro(textures[menuInventory.animations[menuInventory.current_animation].texture_id], (Rectangle) { 16 * menuInventory.animations[menuInventory.current_animation].current_frame, 0, 320, 240 }, (Rectangle) { popupX, popupY, 320, 240 }, (Vector2) { 0, 0 }, 0, WHITE);
+			}
+		}
+		else if (in_battle) {
+			// Draw battle elements
+			// For example:
+			// DrawBattle();
 		}
 
 		EndMode2D();
 		EndDrawing();
-
-		// Check for spacebar press to switch screens
-		if (IsKeyPressed(KEY_SPACE)) {
-			showMainScreen = !showMainScreen;
-		}
 	}
 
 	// De-Initialization
 	CloseWindow(); // Close window and OpenGL context
-	FreeMazeMemory(); // Free memory
-
 	return 0;
 }
