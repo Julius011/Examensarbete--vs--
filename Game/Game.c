@@ -588,8 +588,12 @@ int main()
 	camera.rotation = 0.0f;
 	camera.zoom = 2.0f;
 
-	// Load music
+	// Load music and sound effects
 	Music musicDM = LoadMusicStream("E:/HDDFolders/Programming/C/Game/Game/music/dm.wav");
+	Music soundTalking = LoadMusicStream("E:/HDDFolders/Programming/C/Game/Game/music/talking.wav");
+
+	musicDM.looping = true;
+	soundTalking.looping = true;
 
 	while (!WindowShouldClose()) {
 		//----------------------------------------------------
