@@ -204,7 +204,8 @@ int main()
 	//----------------------------------------------------
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Main window");
 	SetTargetFPS(60); // Sets the framerate to 60
-	LoadAllTextures(textures); // Call the LoadAllTextures function
+	LoadAllTextures(textures); // Initilise all Textures
+	InitAudioDevice(); // Initilise audio
 
 	// Background
 	StaticObject backgroundDM = (StaticObject){ .texture_id = TEXTURE_BACKGROUND_DM };
@@ -587,6 +588,9 @@ int main()
 	camera.rotation = 0.0f;
 	camera.zoom = 2.0f;
 
+	// Load music
+	Music musicDM = LoadMusicStream("E:/HDDFolders/Programming/C/Game/Game/music/dm.wav");
+
 	while (!WindowShouldClose()) {
 		//----------------------------------------------------
 		// Update
@@ -753,6 +757,10 @@ int main()
 			in_battle = true;
 		}
 
+		if (in_front_of_dm)
+		{
+			PlayMusicStream(musicDM);
+		}
 
 		if (turnOrder.active && turnOrder.current_animation  == 0) // Player turn
 		{
